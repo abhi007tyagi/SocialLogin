@@ -23,22 +23,40 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.twitter.sdk.android.Twitter;
+import com.twitter.sdk.android.core.Result;
+import com.twitter.sdk.android.core.TwitterAuthConfig;
+import com.twitter.sdk.android.core.TwitterException;
+import com.twitter.sdk.android.core.TwitterSession;
+import com.twitter.sdk.android.core.identity.TwitterAuthClient;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Arrays;
 
+import io.fabric.sdk.android.Fabric;
+
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.OnConnectionFailedListener {
+
+    // Note: Your consumer key and secret should be obfuscated in your source code before shipping.
+    private static final String TWITTER_KEY = "xxxxxxxxxx";
+    private static final String TWITTER_SECRET = "xxxxxxxx";
+
 
     private static final String TAG = MainActivity.class.getName();
     private GoogleApiClient mGoogleApiClient;
     private static final int GO_SIGN_IN = 3;
     private CallbackManager callbackManager;
+    private TwitterAuthClient mTwitterAuthClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        TwitterAuthConfig authConfig = new TwitterAuthConfig(TWITTER_KEY, TWITTER_SECRET);
+        Fabric.with(this, new Twitter(authConfig));
+        mTwitterAuthClient= new TwitterAuthClient();
+
 
         // Configure sign-in to request the user's ID, email address, and basic
         // profile. ID and basic profile are included in DEFAULT_SIGN_IN.
@@ -119,6 +137,21 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
     public void twLogin(View view) {
         Log.d("twLogin", "Clicked");
+        mTwitterAuthClient.authorize(this, new com.twitter.sdk.android.core.Callback<TwitterSession>() {
+
+            @Override
+            public void success(Result<TwitterSession> twitterSessionResult) {
+                // Success
+                Log.d("Twitter Login","Success");
+                Log.d("User Name -->",twitterSessionResult.data.getUserName());
+            }
+
+            @Override
+            public void failure(TwitterException e) {
+                Log.d("Twitter Login","Failure");
+                e.printStackTrace();
+            }
+        });
     }
 
     public void goLogin(View view) {
@@ -136,11 +169,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         if (requestCode == GO_SIGN_IN) {
             GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
             handleSignInResult(result);
-        }else{
-            if(callbackManager.onActivityResult(requestCode, resultCode, data)) {
-                return;
-            }
+        }else if(callbackManager.onActivityResult(requestCode, resultCode, data)) {
+            return;
+        }else {
+            mTwitterAuthClient.onActivityResult(requestCode, resultCode, data);
         }
+
     }
 
     private void handleSignInResult(GoogleSignInResult result) {
